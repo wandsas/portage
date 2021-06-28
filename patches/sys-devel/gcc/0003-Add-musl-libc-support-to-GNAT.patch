@@ -1,0 +1,480 @@
+From f2a689be247d7aad3f29639ae89a4180524e460e Mon Sep 17 00:00:00 2001
+From: Samuel Holland <samuel@sholland.org>
+Date: Sun, 7 Jul 2019 02:02:37 -0500
+Subject: [PATCH 3/7] Add musl libc support to GNAT
+
+---
+ gcc/ada/Makefile.rtl                 |  2 +-
+ gcc/ada/adadecode.c                  |  2 -
+ gcc/ada/adaint.c                     |  4 +-
+ gcc/ada/adaint.h                     |  1 +
+ gcc/ada/argv.c                       |  4 +-
+ gcc/ada/cio.c                        |  4 +-
+ gcc/ada/cstreams.c                   |  4 +-
+ gcc/ada/init.c                       |  3 +-
+ gcc/ada/libgnarl/s-osinte__linux.ads | 11 ----
+ gcc/ada/libgnarl/s-taprop__linux.adb | 53 ++-----------------
+ gcc/ada/libgnat/s-dwalin.adb         |  4 ++
+ gcc/ada/libgnat/s-tsmona__linux.adb  | 76 +++++++++++++++-------------
+ gcc/ada/mkdir.c                      |  4 +-
+ gcc/ada/raise.c                      |  3 +-
+ gcc/ada/sysdep.c                     |  4 +-
+ gcc/ada/terminals.c                  |  3 +-
+ 16 files changed, 67 insertions(+), 115 deletions(-)
+
+diff --git a/gcc/ada/Makefile.rtl b/gcc/ada/Makefile.rtl
+index 55ff9b0f3d56..5bb8e15ffd69 100644
+--- a/gcc/ada/Makefile.rtl
++++ b/gcc/ada/Makefile.rtl
+@@ -2112,7 +2112,7 @@ ifeq ($(strip $(filter-out powerpc% linux%,$(target_cpu) $(target_os))),)
+ endif
+ 
+ # ARM linux, GNU eabi
+-ifeq ($(strip $(filter-out arm% linux-gnueabi%,$(target_cpu) $(target_os))),)
++ifeq ($(strip $(filter-out arm% linux-gnueabi% linux-musleabi% linux-muslgnueabi%,$(target_cpu) $(target_os))),)
+   LIBGNAT_TARGET_PAIRS = \
+   a-intnam.ads<libgnarl/a-intnam__linux.ads \
+   s-inmaop.adb<libgnarl/s-inmaop__posix.adb \
+diff --git a/gcc/ada/adadecode.c b/gcc/ada/adadecode.c
+index f87d421224f2..f5d8e5eca5ab 100644
+--- a/gcc/ada/adadecode.c
++++ b/gcc/ada/adadecode.c
+@@ -34,8 +34,6 @@
+ #include <stdio.h>
+ #include <ctype.h>
+ 
+-#include "adaint.h"  /* for a macro version of xstrdup.  */
+-
+ #ifndef ISDIGIT
+ #define ISDIGIT(c) isdigit(c)
+ #endif
+diff --git a/gcc/ada/adaint.c b/gcc/ada/adaint.c
+index 595abf87d65e..29649a84b27f 100644
+--- a/gcc/ada/adaint.c
++++ b/gcc/ada/adaint.c
+@@ -99,6 +99,8 @@
+ #include <sys/syspage.h>
+ #endif
+ 
++#include "adaint.h"
++
+ #ifdef IN_RTS
+ 
+ #ifdef STANDALONE
+@@ -234,8 +236,6 @@ UINT __gnat_current_ccs_encoding;
+ #include <utime.h>
+ #endif
+ 
+-#include "adaint.h"
+-
+ /* Define symbols O_BINARY and O_TEXT as harmless zeroes if they are not
+    defined in the current system. On DOS-like systems these flags control
+    whether the file is opened/created in text-translation mode (CR/LF in
+diff --git a/gcc/ada/adaint.h b/gcc/ada/adaint.h
+index 311e240dfcce..20007c814e22 100644
+--- a/gcc/ada/adaint.h
++++ b/gcc/ada/adaint.h
+@@ -316,6 +316,7 @@ extern void   *__gnat_lwp_self			   (void);
+ 
+ /* Routines for interface to required CPU set primitives */
+ 
++#define _GNU_SOURCE
+ #include <sched.h>
+ 
+ extern cpu_set_t *__gnat_cpu_alloc                 (size_t);
+diff --git a/gcc/ada/argv.c b/gcc/ada/argv.c
+index ca82ed596e9d..326e957596a4 100644
+--- a/gcc/ada/argv.c
++++ b/gcc/ada/argv.c
+@@ -42,6 +42,8 @@
+    main program, and these routines are accessed from the
+    Ada.Command_Line.Environment package.  */
+ 
++#include "adaint.h"
++
+ #ifdef IN_RTS
+ #include "runtime.h"
+ #include <string.h>
+@@ -50,8 +52,6 @@
+ #include "system.h"
+ #endif
+ 
+-#include "adaint.h"
+-
+ #ifdef __cplusplus
+ extern "C" {
+ #endif
+diff --git a/gcc/ada/cio.c b/gcc/ada/cio.c
+index 7fca41285c0d..46f4ee09cc44 100644
+--- a/gcc/ada/cio.c
++++ b/gcc/ada/cio.c
+@@ -29,6 +29,8 @@
+  *                                                                          *
+  ****************************************************************************/
+ 
++#include "adaint.h"
++
+ #ifdef IN_RTS
+ #include "runtime.h"
+ #include <sys/stat.h>
+@@ -37,8 +39,6 @@
+ #include "system.h"
+ #endif
+ 
+-#include "adaint.h"
+-
+ /* We need L_tmpnam definition */
+ #include <stdio.h>
+ 
+diff --git a/gcc/ada/cstreams.c b/gcc/ada/cstreams.c
+index 92392fcbd1c5..2395083233b3 100644
+--- a/gcc/ada/cstreams.c
++++ b/gcc/ada/cstreams.c
+@@ -52,6 +52,8 @@
+ #include "vxWorks.h"
+ #endif
+ 
++#include "adaint.h"
++
+ #ifdef IN_RTS
+ #include <string.h>
+ #else
+@@ -59,8 +61,6 @@
+ #include "system.h"
+ #endif
+ 
+-#include "adaint.h"
+-
+ #ifdef __cplusplus
+ extern "C" {
+ #endif
+diff --git a/gcc/ada/init.c b/gcc/ada/init.c
+index 67ea4dc25798..66336c3a8d02 100644
+--- a/gcc/ada/init.c
++++ b/gcc/ada/init.c
+@@ -53,6 +53,8 @@
+ #undef __linux__
+ #endif
+ 
++#include "adaint.h"
++
+ #ifdef IN_RTS
+ 
+ #ifdef STANDALONE
+@@ -71,7 +73,6 @@
+ #include "system.h"
+ #endif
+ 
+-#include "adaint.h"
+ #include "raise.h"
+ 
+ #ifdef __cplusplus
+diff --git a/gcc/ada/libgnarl/s-osinte__linux.ads b/gcc/ada/libgnarl/s-osinte__linux.ads
+index 80cb2b2a793e..701b7a3aeabc 100644
+--- a/gcc/ada/libgnarl/s-osinte__linux.ads
++++ b/gcc/ada/libgnarl/s-osinte__linux.ads
+@@ -399,12 +399,6 @@ package System.OS_Interface is
+    PTHREAD_RWLOCK_PREFER_WRITER_NP              : constant := 1;
+    PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP : constant := 2;
+ 
+-   function pthread_rwlockattr_setkind_np
+-     (attr : access pthread_rwlockattr_t;
+-      pref : int) return int;
+-   pragma Import
+-     (C, pthread_rwlockattr_setkind_np, "pthread_rwlockattr_setkind_np");
+-
+    function pthread_rwlock_init
+      (mutex : access pthread_rwlock_t;
+       attr  : access pthread_rwlockattr_t) return int;
+@@ -466,11 +460,6 @@ package System.OS_Interface is
+       protocol : int) return int;
+    pragma Import (C, pthread_mutexattr_setprotocol);
+ 
+-   function pthread_mutexattr_setprioceiling
+-     (attr        : access pthread_mutexattr_t;
+-      prioceiling : int) return int;
+-   pragma Import (C, pthread_mutexattr_setprioceiling);
+-
+    type struct_sched_param is record
+       sched_priority : int;  --  scheduling priority
+    end record;
+diff --git a/gcc/ada/libgnarl/s-taprop__linux.adb b/gcc/ada/libgnarl/s-taprop__linux.adb
+index c45559e5ba00..0b0f173e7d46 100644
+--- a/gcc/ada/libgnarl/s-taprop__linux.adb
++++ b/gcc/ada/libgnarl/s-taprop__linux.adb
+@@ -202,9 +202,6 @@ package body System.Task_Primitives.Operations is
+    pragma Import
+      (C, GNAT_pthread_condattr_setup, "__gnat_pthread_condattr_setup");
+ 
+-   function GNAT_has_cap_sys_nice return C.int;
+-   pragma Import
+-     (C, GNAT_has_cap_sys_nice, "__gnat_has_cap_sys_nice");
+    --  We do not have pragma Linker_Options ("-lcap"); here, because this
+    --  library is not present on many Linux systems. 'libcap' is the Linux
+    --  "capabilities" library, called by __gnat_has_cap_sys_nice.
+@@ -214,38 +211,6 @@ package body System.Task_Primitives.Operations is
+    --  Convert Ada priority to Linux priority. Priorities are 1 .. 99 on
+    --  GNU/Linux, so we map 0 .. 98 to 1 .. 99.
+ 
+-   function Get_Ceiling_Support return Boolean;
+-   --  Get the value of the Ceiling_Support constant (see below).
+-   --  Note well: If this function or related code is modified, it should be
+-   --  tested by hand, because automated testing doesn't exercise it.
+-
+-   -------------------------
+-   -- Get_Ceiling_Support --
+-   -------------------------
+-
+-   function Get_Ceiling_Support return Boolean is
+-      Ceiling_Support : Boolean := False;
+-   begin
+-      if Locking_Policy /= 'C' then
+-         return False;
+-      end if;
+-
+-      declare
+-         function geteuid return Integer;
+-         pragma Import (C, geteuid, "geteuid");
+-         Superuser : constant Boolean := geteuid = 0;
+-         Has_Cap : constant C.int := GNAT_has_cap_sys_nice;
+-         pragma Assert (Has_Cap in 0 | 1);
+-      begin
+-         Ceiling_Support := Superuser or else Has_Cap = 1;
+-      end;
+-
+-      return Ceiling_Support;
+-   end Get_Ceiling_Support;
+-
+-   pragma Warnings (Off, "non-static call not allowed in preelaborated unit");
+-   Ceiling_Support : constant Boolean := Get_Ceiling_Support;
+-   pragma Warnings (On, "non-static call not allowed in preelaborated unit");
+    --  True if the locking policy is Ceiling_Locking, and the current process
+    --  has permission to use this policy. The process has permission if it is
+    --  running as 'root', or if the capability was set by the setcap command,
+@@ -348,7 +313,9 @@ package body System.Task_Primitives.Operations is
+    -- Init_Mutex --
+    ----------------
+ 
++   pragma Warnings (Off, "formal parameter * is not referenced");
+    function Init_Mutex (L : RTS_Lock_Ptr; Prio : Any_Priority) return C.int is
++   pragma Warnings (On, "formal parameter * is not referenced");
+       Mutex_Attr : aliased pthread_mutexattr_t;
+       Result, Result_2 : C.int;
+ 
+@@ -360,16 +327,7 @@ package body System.Task_Primitives.Operations is
+          return Result;
+       end if;
+ 
+-      if Ceiling_Support then
+-         Result := pthread_mutexattr_setprotocol
+-           (Mutex_Attr'Access, PTHREAD_PRIO_PROTECT);
+-         pragma Assert (Result = 0);
+-
+-         Result := pthread_mutexattr_setprioceiling
+-           (Mutex_Attr'Access, Prio_To_Linux_Prio (Prio));
+-         pragma Assert (Result = 0);
+-
+-      elsif Locking_Policy = 'I' then
++      if Locking_Policy = 'I' then
+          Result := pthread_mutexattr_setprotocol
+            (Mutex_Attr'Access, PTHREAD_PRIO_INHERIT);
+          pragma Assert (Result = 0);
+@@ -409,11 +367,6 @@ package body System.Task_Primitives.Operations is
+             Result := pthread_rwlockattr_init (RWlock_Attr'Access);
+             pragma Assert (Result = 0);
+ 
+-            Result := pthread_rwlockattr_setkind_np
+-              (RWlock_Attr'Access,
+-               PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP);
+-            pragma Assert (Result = 0);
+-
+             Result := pthread_rwlock_init (L.RW'Access, RWlock_Attr'Access);
+ 
+             pragma Assert (Result in 0 | ENOMEM);
+diff --git a/gcc/ada/libgnat/s-dwalin.adb b/gcc/ada/libgnat/s-dwalin.adb
+index 5307eae2603c..68fb8d4f59c0 100644
+--- a/gcc/ada/libgnat/s-dwalin.adb
++++ b/gcc/ada/libgnat/s-dwalin.adb
+@@ -1283,6 +1283,10 @@ package body System.Dwarf_Lines is
+             --  Read table
+             loop
+                Read_Aranges_Entry (C, Ar_Start, Ar_Len);
++               --  Skip references to discarded sections
++               while Ar_Start = 0 and Ar_Len /= 0 loop
++                  Read_Aranges_Entry (C, Ar_Start, Ar_Len);
++               end loop;
+                exit when Ar_Start = 0 and Ar_Len = 0;
+ 
+                Len   := uint32 (Ar_Len);
+diff --git a/gcc/ada/libgnat/s-tsmona__linux.adb b/gcc/ada/libgnat/s-tsmona__linux.adb
+index bc3ee23be8d1..4fe0ac685f83 100644
+--- a/gcc/ada/libgnat/s-tsmona__linux.adb
++++ b/gcc/ada/libgnat/s-tsmona__linux.adb
+@@ -87,45 +87,49 @@ package body Module_Name is
+    -- Build_Cache_For_All_Modules --
+    ---------------------------------
+ 
+-   procedure Build_Cache_For_All_Modules is
+-      type link_map;
+-      type link_map_acc is access all link_map;
+-      pragma Convention (C, link_map_acc);
+-
+-      type link_map is record
+-         l_addr : Address;
+-         --  Base address of the shared object
+-
+-         l_name : Address;
+-         --  Null-terminated absolute file name
+-
+-         l_ld   : Address;
+-         --  Dynamic section
+-
+-         l_next, l_prev : link_map_acc;
+-         --  Chain
+-      end record;
+-      pragma Convention (C, link_map);
+-
+-      type r_debug_type is record
+-         r_version : Integer;
+-         r_map : link_map_acc;
+-      end record;
+-      pragma Convention (C, r_debug_type);
++   type dl_phdr_info is record
++      dlpi_addr  : Address;
++      dlpi_name  : Address;
++      dlpi_phdr  : Address;
++      dlpi_phnum : unsigned_short;
++   end record;
++   pragma Convention (C, dl_phdr_info);
++
++   type Callback_Type is access function
++     (info : not null access dl_phdr_info;
++      size : size_t;
++      data : Address) return int;
++   pragma Convention (C, Callback_Type);
++
++   function Build_Cache_Callback
++     (info : not null access dl_phdr_info;
++      size : size_t;
++      data : Address) return int;
++   pragma Convention (C, Build_Cache_Callback);
++
++   function Build_Cache_Callback
++     (info : not null access dl_phdr_info;
++      size : size_t;
++      data : Address) return int is
++      pragma Unreferenced (size);
++      pragma Unreferenced (data);
++   begin
++      if Big_String_Conv.To_Pointer (info.dlpi_name) (1) /= ASCII.NUL then
++         --  Discard non-file (like the executable itself or the gate).
++         Add_Module_To_Cache (Value (info.dlpi_name), info.dlpi_addr);
++      end if;
++      return 0;
++   end Build_Cache_Callback;
+ 
+-      r_debug : r_debug_type;
+-      pragma Import (C, r_debug, "_r_debug");
++   function dl_iterate_phdr
++     (callback : Callback_Type;
++      data     : Address) return int;
++   pragma Import (C, dl_iterate_phdr, "dl_iterate_phdr");
+ 
+-      lm : link_map_acc;
++   procedure Build_Cache_For_All_Modules is
++      unused : int;
+    begin
+-      lm := r_debug.r_map;
+-      while lm /= null loop
+-         if Big_String_Conv.To_Pointer (lm.l_name) (1) /= ASCII.NUL then
+-            --  Discard non-file (like the executable itself or the gate).
+-            Add_Module_To_Cache (Value (lm.l_name), lm.l_addr);
+-         end if;
+-         lm := lm.l_next;
+-      end loop;
++      unused := dl_iterate_phdr (Build_Cache_Callback'Access, Null_Address);
+    end Build_Cache_For_All_Modules;
+ 
+    ---------
+diff --git a/gcc/ada/mkdir.c b/gcc/ada/mkdir.c
+index e0efccec36f7..e016722a3867 100644
+--- a/gcc/ada/mkdir.c
++++ b/gcc/ada/mkdir.c
+@@ -34,6 +34,8 @@
+ #include <version.h>
+ #endif /* __vxworks */
+ 
++#include "adaint.h"
++
+ #ifdef IN_RTS
+ #include "runtime.h"
+ #include <sys/stat.h>
+@@ -52,8 +54,6 @@
+ #endif
+ #endif
+ 
+-#include "adaint.h"
+-
+ /*  This function provides a portable binding to the mkdir function.  */
+ 
+ int
+diff --git a/gcc/ada/raise.c b/gcc/ada/raise.c
+index bf8a8797afc7..d8a9127ce383 100644
+--- a/gcc/ada/raise.c
++++ b/gcc/ada/raise.c
+@@ -32,6 +32,8 @@
+ /* Shared routines to support exception handling.  __gnat_unhandled_terminate
+    is shared between all exception handling mechanisms.  */
+ 
++#include "adaint.h"
++
+ #ifdef IN_RTS
+ #include "runtime.h"
+ #else
+@@ -39,7 +41,6 @@
+ #include "system.h"
+ #endif
+ 
+-#include "adaint.h"
+ #include "raise.h"
+ 
+ #ifdef __cplusplus
+diff --git a/gcc/ada/sysdep.c b/gcc/ada/sysdep.c
+index 1e1f5eeb5e6e..b8d016e0b3cb 100644
+--- a/gcc/ada/sysdep.c
++++ b/gcc/ada/sysdep.c
+@@ -52,6 +52,8 @@
+ #undef __linux__
+ #endif
+ 
++#include "adaint.h"
++
+ #ifdef IN_RTS
+ #define POSIX
+ #include "runtime.h"
+@@ -74,8 +76,6 @@
+ extern struct tm *localtime_r(const time_t *, struct tm *);
+ #endif
+ 
+-#include "adaint.h"
+-
+ /* Don't use macros versions of this functions on VxWorks since they cause
+    imcompatible changes in some VxWorks versions */
+ #ifdef __vxworks
+diff --git a/gcc/ada/terminals.c b/gcc/ada/terminals.c
+index af4417fab906..7d717d08b992 100644
+--- a/gcc/ada/terminals.c
++++ b/gcc/ada/terminals.c
+@@ -1159,7 +1159,8 @@ __gnat_setup_winsize (void *desc, int rows, int columns)
+ #if defined (__APPLE__) || defined (BSD)
+ #define USE_OPENPTY
+ #elif defined (__linux__)
+-#define USE_GETPT
++#include <pty.h>
++#define USE_OPENPTY
+ #elif defined (__sun__)
+ #define USE_CLONE_DEVICE "/dev/ptmx"
+ #elif defined (_AIX)
+-- 
+2.24.1
+

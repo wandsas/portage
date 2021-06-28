@@ -1,0 +1,63 @@
+From 8bce614e9094d6575702dfb3204a7022a0a410ab Mon Sep 17 00:00:00 2001
+From: Samuel Holland <samuel@sholland.org>
+Date: Sun, 30 Jun 2019 13:08:50 -0500
+Subject: [PATCH 4/7] Add IEEE 128-bit long double ABI to powerpc64 musl
+
+---
+ gcc/config/rs6000/linux.h   |  3 ++-
+ gcc/config/rs6000/linux64.h | 11 +++++++++--
+ 2 files changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/gcc/config/rs6000/linux.h b/gcc/config/rs6000/linux.h
+index b7026fcbee79..d6f8bfb0e611 100644
+--- a/gcc/config/rs6000/linux.h
++++ b/gcc/config/rs6000/linux.h
+@@ -126,8 +126,9 @@
+ #define POWERPC_LINUX
+ 
+ /* ppc linux has 128-bit long double support in glibc 2.4 and later.  */
++/* musl supports 128-bit long double in 1.1.23 and later on powerpc64 only.  */
+ #ifdef TARGET_DEFAULT_LONG_DOUBLE_128
+-#define RS6000_DEFAULT_LONG_DOUBLE_SIZE 128
++#define RS6000_DEFAULT_LONG_DOUBLE_SIZE (OPTION_MUSL ? 64 : 128)
+ #endif
+ 
+ /* Static stack checking is supported by means of probes.  */
+diff --git a/gcc/config/rs6000/linux64.h b/gcc/config/rs6000/linux64.h
+index 34776c8421e5..aab6dd1eea8d 100644
+--- a/gcc/config/rs6000/linux64.h
++++ b/gcc/config/rs6000/linux64.h
+@@ -431,12 +431,18 @@ extern int dot_symbols;
+ ":%(dynamic_linker_prefix)/lib64/ld64.so.1}"
+ #endif
+ 
++#ifdef TARGET_DEFAULT_LONG_DOUBLE_128
++#define MUSL_DYNAMIC_LINKER_FP "%{mlong-double-64:;:-ieee128}"
++#else
++#define MUSL_DYNAMIC_LINKER_FP "%{mlong-double-128:-ieee128}"
++#endif
++
+ #undef MUSL_DYNAMIC_LINKER32
+ #define MUSL_DYNAMIC_LINKER32 \
+   "/lib/ld-musl-powerpc" MUSL_DYNAMIC_LINKER_E "%{msoft-float:-sf}.so.1"
+ #undef MUSL_DYNAMIC_LINKER64
+ #define MUSL_DYNAMIC_LINKER64 \
+-  "/lib/ld-musl-powerpc64" MUSL_DYNAMIC_LINKER_E "%{msoft-float:-sf}.so.1"
++  "/lib/ld-musl-powerpc64" MUSL_DYNAMIC_LINKER_E MUSL_DYNAMIC_LINKER_FP ".so.1"
+ 
+ #undef  DEFAULT_ASM_ENDIAN
+ #if (TARGET_DEFAULT & MASK_LITTLE_ENDIAN)
+@@ -612,8 +618,9 @@ extern int dot_symbols;
+ #define POWERPC_LINUX
+ 
+ /* ppc{32,64} linux has 128-bit long double support in glibc 2.4 and later.  */
++/* musl supports 128-bit long double in 1.1.23 and later on powerpc64 only.  */
+ #ifdef TARGET_DEFAULT_LONG_DOUBLE_128
+-#define RS6000_DEFAULT_LONG_DOUBLE_SIZE 128
++#define RS6000_DEFAULT_LONG_DOUBLE_SIZE (OPTION_MUSL && !TARGET_64BIT ? 64 : 128)
+ #endif
+ 
+ /* Static stack checking is supported by means of probes.  */
+-- 
+2.24.1
+

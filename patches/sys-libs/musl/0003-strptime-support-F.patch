@@ -1,0 +1,27 @@
+From fd65d1ff2f6670aad845ed8f629865947a1f1bc3 Mon Sep 17 00:00:00 2001
+From: Samuel Holland <samuel@sholland.org>
+Date: Sun, 8 Mar 2020 14:04:46 -0500
+Subject: [PATCH 3/7] strptime: support %F
+
+---
+ src/time/strptime.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/time/strptime.c b/src/time/strptime.c
+index c54a0d8c..2c0d4557 100644
+--- a/src/time/strptime.c
++++ b/src/time/strptime.c
+@@ -59,6 +59,10 @@ char *strptime(const char *restrict s, const char *restrict f, struct tm *restri
+ 			s = strptime(s, "%m/%d/%y", tm);
+ 			if (!s) return 0;
+ 			break;
++		case 'F':
++			s = strptime(s, "%Y-%m-%d", tm);
++			if (!s) return 0;
++			break;
+ 		case 'H':
+ 			dest = &tm->tm_hour;
+ 			min = 0;
+-- 
+2.26.3
+

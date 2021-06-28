@@ -1,0 +1,5 @@
+app-admin/doas pam
+app-arch/libarchive zstd -lz4
+sys-libs/libcap pam
+sys-libs/pam cracklib
+dev-libs/libpcre2 pcre32

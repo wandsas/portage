@@ -1,0 +1,26 @@
+sys-apps/busybox ~am64
+# musl
+sys-libs/musl ~amd64
+
+# llvm and friends
+dev-util/lldb ~amd64
+dev-python/lit ~amd64
+sys-devel/clang ~amd64
+sys-devel/clang-common ~amd64
+sys-devel/clang-runtime ~amd64
+sys-devel/lld ~amd64
+sys-devel/llvm ~amd64
+sys-devel/llvm-common ~amd64
+sys-libs/compiler-rt ~amd64
+sys-libs/libcxx ~amd64
+sys-libs/libcxxabi ~amd64
+sys-libs/libomp ~amd64
+sys-libs/llvm-libunwind ~amd64
+sys-kernel/vanilla-sources ~amd64
+
+# gcc
+sys-devel/gcc ~amd64
+
+# kernel
+sys-kernel/linux-headers ~amd64
+sys-kernel/vanilla-sources ~amd64
