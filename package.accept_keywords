@@ -1,6 +1,8 @@
-app-misc/grc ~amd64
 sys-apps/busybox ~am64
-# musl
+sys-apps/linux-misc-apps ~amd64
+sys-devel/gcc ~amd64
+sys-kernel/linux-headers ~amd64
+sys-kernel/vanilla-sources ~amd64
 sys-libs/musl ~amd64
 
 # llvm and friends
@@ -19,9 +21,13 @@ sys-libs/libomp ~amd64
 sys-libs/llvm-libunwind ~amd64
 sys-kernel/vanilla-sources ~amd64
 
-# gcc
-sys-devel/gcc ~amd64
-
-# kernel
-sys-kernel/linux-headers ~amd64
-sys-kernel/vanilla-sources ~amd64
+# s6 and friends
+dev-lang/execline ~amd64
+dev-libs/skalibs ~amd64
+net-dns/s6-dns ~amd64
+net-misc/s6-networking ~amd64
+sys-apps/s6 ~amd64
+sys-apps/s6-linux-init ~amd64
+sys-apps/s6-linux-utils ~amd64
+sys-apps/s6-portable-utils ~amd64
+sys-apps/s6-rc ~amd64
