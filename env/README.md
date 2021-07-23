@@ -1,0 +1,19 @@
+# gcc glibc
+CC="gcc"
+CXX="g++"
+CXXFLAGS="${CFLAGS}"
+LDFLAGS=""
+
+# llvm/clang glibc
+CC="clang"
+CXX="clang++"
+CFLAGS="-march=westmere -msse4.2 -O2 -pipe -flto=thin"
+CXXFLAGS="-stdlib=libc++ ${CFLAGS}"
+LDFLAGS="-flto=thin -fuse-ld=lld -rtlib=compiler-rt -unwindlib=libunwind"
+
+# llvm/clang musl
+CC="clang"
+CXX="clang++"
+CFLAGS="-march=westmere -msse4.2 -O2 -pipe -fomit-frame-pointer -ffunction-sections -fdata-sections -flto=thin"
+CXXFLAGS="-stdlib=libc++ ${CFLAGS}"
+LDFLAGS="-flto=thin -fuse-ld=lld -rtlib=compiler-rt -unwindlib=libunwind -Wl,--gc-sections -Wl,--as-needed -Wl,--stip-all"
